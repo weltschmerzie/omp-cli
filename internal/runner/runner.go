@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/yourusername/omp-cli/pkg/utils"
+	"github.com/weltschmerzie/omp-cli/pkg/utils"
 )
 
 // Run executes the open.mp project

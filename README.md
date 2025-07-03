@@ -15,7 +15,7 @@ A command line interface tool for open.mp projects.
 
 1. Clone the repository:
 ```
-git clone https://github.com/yourusername/omp-cli.git
+git clone https://github.com/weltschmerzie/omp-cli.git
 ```
 
 2. Build the project:
@@ -36,7 +36,7 @@ mv ompcli /usr/local/bin/
 ### Using Go Install
 
 ```
-go install github.com/yourusername/omp-cli@latest
+go install github.com/weltschmerzie/omp-cli@latest
 ```
 
 ## Usage
@@ -79,7 +79,7 @@ You can configure your open.mp project using a `project.json` file:
   ],
   "server_cfg": "server.cfg",
   "author": "Your Name",
-  "repository": "https://github.com/yourusername/my-gamemode"
+  "repository": "https://github.com/weltschmerzie/my-gamemode"
 }
 ```
 

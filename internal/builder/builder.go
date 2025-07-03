@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/yourusername/omp-cli/pkg/utils"
+	"github.com/weltschmerzie/omp-cli/pkg/utils"
 )
 
 // Build compiles the open.mp project
