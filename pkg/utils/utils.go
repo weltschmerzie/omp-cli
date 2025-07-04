@@ -13,11 +13,26 @@ type ProjectConfig struct {
 	Name       string   `json:"name"`
 	Version    string   `json:"version"`
 	MainFile   string   `json:"main_file"`
+	OutputFile string   `json:"output_file"`
 	Resources  []string `json:"resources"`
 	Plugins    []string `json:"plugins"`
 	ServerCfg  string   `json:"server_cfg"`
 	Author     string   `json:"author"`
 	Repository string   `json:"repository"`
+	PawnccPath string   `json:"pawncc_path"`
+}
+
+// ServerConfig represents the configuration of an open.mp server
+type ServerConfig struct {
+	Hostname     string   `json:"hostname"`
+	Port         int      `json:"port"`
+	MaxPlayers   int      `json:"maxplayers"`
+	Language     string   `json:"language"`
+	Gamemode     string   `json:"gamemode"`
+	Plugins      []string `json:"plugins"`
+	WebURL       string   `json:"weburl"`
+	RCONPassword string   `json:"rcon_password"`
+	Password     string   `json:"password"`
 }
 
 // IsOpenMPProject checks if the current directory is an open.mp project
@@ -27,12 +42,20 @@ func IsOpenMPProject() bool {
 		return true
 	}
 
-	// Check for server.cfg file
-	if _, err := os.Stat("server.cfg"); !os.IsNotExist(err) {
+	// Check for config.json file
+	if _, err := os.Stat("config.json"); !os.IsNotExist(err) {
 		return true
 	}
 
-	// Check for pawn scripts
+	// Check for pawn scripts in gamemodes directory
+	if _, err := os.Stat("gamemodes"); !os.IsNotExist(err) {
+		matches, err := filepath.Glob(filepath.Join("gamemodes", "*.pwn"))
+		if err == nil && len(matches) > 0 {
+			return true
+		}
+	}
+
+	// Check for pawn scripts in root directory (legacy support)
 	matches, err := filepath.Glob("*.pwn")
 	if err == nil && len(matches) > 0 {
 		return true
@@ -60,23 +83,68 @@ func GetProjectConfig() (*ProjectConfig, error) {
 
 	// If project.json doesn't exist, try to infer configuration
 	config := &ProjectConfig{
-		Name:      "gamemode",
-		Version:   "1.0.0",
-		MainFile:  "gamemode.pwn",
-		Resources: []string{},
-		Plugins:   []string{},
-		ServerCfg: "server.cfg",
+		Name:       "gamemode",
+		Version:    "1.0.0",
+		MainFile:   filepath.Join("gamemodes", "gamemode.pwn"),
+		OutputFile: filepath.Join("gamemodes", "gamemode.amx"),
+		Resources:  []string{},
+		Plugins:    []string{},
+		ServerCfg:  "config.json", // Updated to config.json
+		PawnccPath: "qawno",       // Default pawncc path
 	}
 
-	// Check for main script file
-	matches, err := filepath.Glob("*.pwn")
-	if err == nil && len(matches) > 0 {
-		config.MainFile = matches[0]
-		config.Name = filepath.Base(matches[0])
-		config.Name = config.Name[:len(config.Name)-4] // Remove .pwn extension
+	// Check for main script file in gamemodes directory
+	if _, err := os.Stat("gamemodes"); !os.IsNotExist(err) {
+		matches, err := filepath.Glob(filepath.Join("gamemodes", "*.pwn"))
+		if err == nil && len(matches) > 0 {
+			config.MainFile = matches[0]
+			baseName := filepath.Base(matches[0])
+			nameWithoutExt := baseName[:len(baseName)-4] // Remove .pwn extension
+			config.Name = nameWithoutExt
+			config.OutputFile = filepath.Join("gamemodes", nameWithoutExt+".amx")
+		}
+	} else {
+		// Legacy support: Check for main script file in root directory
+		matches, err := filepath.Glob("*.pwn")
+		if err == nil && len(matches) > 0 {
+			config.MainFile = matches[0]
+			baseName := filepath.Base(matches[0])
+			nameWithoutExt := baseName[:len(baseName)-4] // Remove .pwn extension
+			config.Name = nameWithoutExt
+			config.OutputFile = filepath.Join("gamemodes", nameWithoutExt+".amx")
+		}
 	}
 
 	return config, nil
+}
+
+// GetServerConfig reads and parses the server configuration
+func GetServerConfig() (*ServerConfig, error) {
+	// Try to read config.json
+	if _, err := os.Stat("config.json"); !os.IsNotExist(err) {
+		data, err := os.ReadFile("config.json")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config.json: %w", err)
+		}
+
+		var config ServerConfig
+		if err := json.Unmarshal(data, &config); err != nil {
+			return nil, fmt.Errorf("failed to parse config.json: %w", err)
+		}
+
+		return &config, nil
+	}
+
+	// If config.json doesn't exist, return default configuration
+	return &ServerConfig{
+		Hostname:   "Open.MP Server",
+		Port:       7777,
+		MaxPlayers: 50,
+		Language:   "English",
+		Gamemode:   "gamemode",
+		Plugins:    []string{},
+		WebURL:     "open.mp",
+	}, nil
 }
 
 // CopyRequiredFiles copies necessary files to the build directory
@@ -87,11 +155,22 @@ func CopyRequiredFiles(buildDir string) error {
 		return err
 	}
 
-	// Copy server.cfg
-	if _, err := os.Stat(config.ServerCfg); !os.IsNotExist(err) {
-		if err := copyFile(config.ServerCfg, filepath.Join(buildDir, "server.cfg")); err != nil {
-			return fmt.Errorf("failed to copy server.cfg: %w", err)
+	// Copy config.json
+	if _, err := os.Stat("config.json"); !os.IsNotExist(err) {
+		if err := copyFile("config.json", filepath.Join(buildDir, "config.json")); err != nil {
+			return fmt.Errorf("failed to copy config.json: %w", err)
 		}
+	} else if _, err := os.Stat(config.ServerCfg); !os.IsNotExist(err) {
+		// For backward compatibility, also check for server.cfg
+		if err := copyFile(config.ServerCfg, filepath.Join(buildDir, "config.json")); err != nil {
+			return fmt.Errorf("failed to copy server configuration: %w", err)
+		}
+	}
+
+	// Create gamemodes directory in build directory
+	gamemodesDir := filepath.Join(buildDir, "gamemodes")
+	if err := os.MkdirAll(gamemodesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create gamemodes directory: %w", err)
 	}
 
 	// Copy resources

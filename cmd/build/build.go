@@ -13,7 +13,12 @@ var BuildCmd = &cobra.Command{
 	Short: "Build/compile the open.mp project",
 	Long: `Build command compiles the open.mp project.
 It will look for the project files in the current directory
-and compile them according to open.mp specifications.`,
+and compile them according to open.mp specifications.
+It uses project.json for project configuration and config.json for server settings.`,
+	DisableFlagParsing:    false,
+	DisableAutoGenTag:     true,
+	DisableFlagsInUseLine: false,
+	DisableSuggestions:    true,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get flags
 		verbose, _ := cmd.Flags().GetBool("verbose")

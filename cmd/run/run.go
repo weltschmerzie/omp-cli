@@ -13,7 +13,11 @@ var RunCmd = &cobra.Command{
 	Short: "Run the open.mp project",
 	Long: `Run command executes the open.mp project.
 It will look for the compiled project in the current directory
-and run it according to open.mp specifications.`,
+and run it according to open.mp specifications using config.json.`,
+	DisableFlagParsing:    false,
+	DisableAutoGenTag:     true,
+	DisableFlagsInUseLine: false,
+	DisableSuggestions:    true,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get flags
 		debug, _ := cmd.Flags().GetBool("debug")

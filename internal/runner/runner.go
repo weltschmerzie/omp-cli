@@ -31,6 +31,12 @@ func Run(debug bool, port int) error {
 		return fmt.Errorf("failed to get project configuration: %w", err)
 	}
 
+	// Get server configuration
+	serverConfig, err := utils.GetServerConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get server configuration: %w", err)
+	}
+
 	// Determine server executable based on OS
 	var serverExe string
 	switch runtime.GOOS {
@@ -48,6 +54,12 @@ func Run(debug bool, port int) error {
 		return fmt.Errorf("server executable not found at %s", serverPath)
 	}
 
+	// Check if the compiled gamemode exists
+	gamemodePath := filepath.Join(buildDir, config.OutputFile)
+	if _, err := os.Stat(gamemodePath); os.IsNotExist(err) {
+		return fmt.Errorf("compiled gamemode not found at %s. Please run 'ompcli build' first", gamemodePath)
+	}
+
 	// Prepare command arguments
 	args := []string{}
 
@@ -56,12 +68,19 @@ func Run(debug bool, port int) error {
 		args = append(args, "--debug")
 	}
 
-	// Add port flag
-	args = append(args, "--port="+strconv.Itoa(port))
+	// Override port if specified
+	if port != 0 && port != serverConfig.Port {
+		args = append(args, "--port="+strconv.Itoa(port))
+	} else {
+		port = serverConfig.Port
+	}
 
-	// Add gamemode
-	gamemodePath := filepath.Join(buildDir, config.Name+".amx")
-	args = append(args, "--gamemode="+gamemodePath)
+	// Add gamemode if not specified in config.json
+	if serverConfig.Gamemode == "" {
+		// Use relative path from build directory to gamemode file
+		relativeGamemodePath := filepath.Join("gamemodes", filepath.Base(config.OutputFile))
+		args = append(args, "--gamemode="+relativeGamemodePath)
+	}
 
 	// Create command
 	cmd := exec.Command(serverPath, args...)
@@ -79,6 +98,7 @@ func Run(debug bool, port int) error {
 	if debug {
 		fmt.Println("Debug mode enabled")
 	}
+	fmt.Printf("Using gamemode: %s\n", filepath.Base(config.OutputFile))
 
 	return cmd.Run()
 }
